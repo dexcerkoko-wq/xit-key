@@ -1,1 +1,84 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DUD0 Key Panel</title>
+<style>
+  body { font-family: monospace; background: #0d0d0d; color: #00ff88; padding: 20px; }
+  h1 { color: #00ff88; }
+  input, select { background: #1a1a1a; color: #fff; border: 1px solid #00ff88; padding: 8px; margin: 4px; border-radius: 4px; }
+  button { background: #00ff88; color: #000; border: none; padding: 8px 16px; cursor: pointer; border-radius: 4px; font-weight: bold; }
+  table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+  th, td { border: 1px solid #333; padding: 8px; text-align: left; font-size: 12px; }
+  th { background: #1a1a1a; color: #00ff88; }
+  .expired { color: #ff4444; }
+  .active { color: #00ff88; }
+  .del { background: #ff4444; color: #fff; padding: 4px 8px; border-radius: 3px; cursor: pointer; border: none; }
+</style>
+</head>
+<body>
+<h1>🔑 DUD0 Key Panel</h1>
 
+<div>
+  <input id="pass" type="password" placeholder="Senha admin">
+  <input id="days" type="number" placeholder="Dias (ex: 30)" value="30">
+  <button onclick="createKey()">Criar Key</button>
+  <button onclick="loadKeys()">Atualizar Lista</button>
+</div>
+
+<div id="result" style="margin-top:10px;"></div>
+
+<table>
+  <thead><tr><th>Key</th><th>Expira</th><th>Device ID</th><th>Status</th><th>Ação</th></tr></thead>
+  <tbody id="tbody"></tbody>
+</table>
+
+<script>
+const API = window.location.origin;
+
+async function createKey() {
+    const pass = document.getElementById('pass').value;
+    const days = document.getElementById('days').value;
+    const r = await fetch(`${API}/admin/create`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pass, days: parseInt(days) })
+    });
+    const d = await r.json();
+    document.getElementById('result').innerHTML = d.key
+        ? `✅ Key criada: <b>${d.key}</b> — expira: ${new Date(d.expires).toLocaleDateString('pt-BR')}`
+        : `❌ ${d.msg}`;
+    loadKeys();
+}
+
+async function loadKeys() {
+    const pass = document.getElementById('pass').value;
+    const r = await fetch(`${API}/admin/keys?password=${pass}`);
+    const data = await r.json();
+    const tbody = document.getElementById('tbody');
+    tbody.innerHTML = '';
+    for (const [key, val] of Object.entries(data)) {
+        const expired = new Date() > new Date(val.expires);
+        tbody.innerHTML += `<tr>
+            <td>${key}</td>
+            <td>${new Date(val.expires).toLocaleDateString('pt-BR')}</td>
+            <td>${val.device_id || '—'}</td>
+            <td class="${expired ? 'expired' : 'active'}">${expired ? 'Expirada' : 'Ativa'}</td>
+            <td><button class="del" onclick="deleteKey('${key}')">🗑</button></td>
+        </tr>`;
+    }
+}
+
+async function deleteKey(key) {
+    const pass = document.getElementById('pass').value;
+    await fetch(`${API}/admin/delete/${key}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pass })
+    });
+    loadKeys();
+}
+</script>
+</body>
+</html>
